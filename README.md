@@ -18,8 +18,9 @@
 
 # 用法
 在项目的根目录下执行以下命令以运行项目：
-    ```
-    python main.py
+```python
+python main.py
+```
 
 # 配置文件文档
 
