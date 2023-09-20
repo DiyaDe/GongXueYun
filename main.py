@@ -118,7 +118,12 @@ def get_plan(token,user_id,user):
                 data = rsp["data"]
                 token = data["token"]
                 user_id = data["userId"]
-                save_user_info(user["phone"], token, user_id)           
+                save_user_info(user["phone"], token, user_id)
+            rsp = requests.post(url="https://api.moguding.net:9000/practice/plan/v3/getPlanByStu", headers=headers, data=json.dumps(data)).json()        
+            data = rsp["data"][0]
+            plan_id = data["planId"]
+            print("这个是 plan", plan_id)       
+            return plan_id  
     else:
         print(rsp)
         data = rsp["data"][0]
@@ -361,7 +366,8 @@ def main(log_url):
                     bujiao_day(plan_id, user_id, bujiao_start_date, bujiao_end_date)
                     del user["bujiao"]
                     del user["bujiao_start_date"]
-                    del user["bujiao_end_date"]               # 补交周报
+                    del user["bujiao_end_date"]     
+                # 补交周报
                 if user['reedy']==True:
                     weeks = get_weeks(plan_id)
                     not_submit_week = weeks[:user['requirement_week_num'] + 1]
