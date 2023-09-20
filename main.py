@@ -1,3 +1,18 @@
+# This file is part of GongXueYun.
+#
+# GongXueYun is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 2 of the License, or
+# (at your option) any later version.
+#
+# GongXueYun is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with GongXueYun.  If not, see <https://www.gnu.org/licenses/>.
+
 import time
 from utils import AES,UTC as pytz
 import random
@@ -372,7 +387,7 @@ def main(log_url):
                     weeks = get_weeks(plan_id)
                     not_submit_week = weeks[:user['requirement_week_num'] + 1]
                     not_submit_week.reverse()
-                    # # 第几周的周报
+                    # 第几周的周报
                     content_entry = get_random_week()
                     week_sign = user_id + "week" + plan_id + "周报" + "3478cbbc33f84bd00d75d7dfa69e0daa"
                     for i in not_submit_week:
@@ -387,34 +402,31 @@ def main(log_url):
                         data["content"] = content_entry['content']
                         rsp = requests.post(url="https://api.moguding.net:9000/practice/paper/v2/save", headers=headers, data=json.dumps(data))
                         print(rsp.text)
-                    del user["reedy"]
-                    del user["requirement_week_num"]                
-                    # 获取当前日期和时间
-                current_datetime = datetime.now()
-                # 从当前日期中提取日期和星期几
-                current_weekday = current_datetime.strftime('%A')
-                # 开始提交周报
-                if current_weekday=="Sunday":
-                    submit_week(plan_id, user_id)
             else:
                 print(f"用户登录失败 {user['phone']}")
                 MessagePush.pushMessage(user['phone'], '工学云' ,'用户：' + user['phone']+ '登录失败' , user.get("pushKey","931dc45e83a442d39eddf0230d2c09e5"))
+            del user["reedy"]
+            del user["requirement_week_num"]                
+                    # 获取当前日期和时间
+            current_datetime = datetime.now()
+                # 从当前日期中提取日期和星期几
+            current_weekday = current_datetime.strftime('%A')
+                # 开始提交周报
+            if current_weekday=="Sunday":
+                submit_week(plan_id, user_id)
+
         else:
             print('自动登录对于用户', user["phone"])
             user_id = user["user_id"]
             token=user["token"]
             plan_id  = get_plan(token, user_id,user)           
-                # 开始签到
+            # 开始签到
             hourNow = datetime.now(pytz.timezone('PRC')).hour
             if hourNow < 12:
                 signType = 'START'
             else:
                 signType = 'END'
                 # 打卡签名算法
-            print(signType)
-            print(plan_id)
-            print(user_id)
-            print(user['address'])
             post_sign = "Android" + signType + plan_id + user_id + user['address'] + "3478cbbc33f84bd00d75d7dfa69e0daa"
             sings= md5_encrypt(post_sign)
                 # 打卡请求头
