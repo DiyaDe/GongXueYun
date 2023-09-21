@@ -21,11 +21,10 @@ import json
 from datetime import timedelta, datetime
 from aes_pkcs5.algorithms.aes_ecb_pkcs5_padding import AESECBPKCS5Padding
 from random import randint
-import MessagePush
 import logging
 logging.basicConfig(filename='app.log', level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s',encoding='utf-8')
 # 推送密钥
-tokentu = "931dc45e83a442d39eddf0230d2c09e5"  # 用实际的 token 值替换这里的内容
+# tokentu = "931dc45e83a442d39eddf0230d2c09e5"  # 用实际的 token 值替换这里的内容
 
 #登录加密
 def encrypt(key, text):
@@ -115,7 +114,7 @@ def get_plan(token,user_id,user):
     rsp = requests.post(url="https://api.moguding.net:9000/practice/plan/v3/getPlanByStu", headers=headers, data=json.dumps(data)).json()
     if rsp.get("code") == 401 and rsp.get("msg") == "token失效":
         logging.info("用户"+user['phone']+"token失效")
-        MessagePush.pushMessage('工学云' ,'用户：' + user['phone']+ 'token失效' , tokentu)
+        # MessagePush.pushMessage('工学云' ,'用户：' + user['phone']+ 'token失效' , tokentu)
         # 如果用户有令牌，则清除 token
         if user.get("token"):
             # Token 失效，进行处理，例如
@@ -148,7 +147,7 @@ def get_plan(token,user_id,user):
                 return plan_id
             else:
                  logging.info('用户：' + user['phone']+ '密码或账号错误')
-                 MessagePush.pushMessage('工学云' ,'用户：' + user['phone']+ '密码或账号错误' , tokentu)
+                #  MessagePush.pushMessage('工学云' ,'用户：' + user['phone']+ '密码或账号错误' , tokentu)
     else:
         data = rsp["data"][0]
         plan_id = data["planId"]
@@ -164,7 +163,7 @@ def get_weeks(plan_id):
     """
     rsp = requests.post(url="https://api.moguding.net:9000/practice/paper/v3/getWeeks1", headers=headers,
                         data=json.dumps({"planId": plan_id})).json()
-    print(rsp)
+    logging.info(rsp)
     return rsp['data'][:20]
 # 获取提交周报次数
 def get_week_count(plan_id, user_id):
@@ -229,14 +228,18 @@ def bujiao_day(plan_id, user_id, bujiao_start_date, bujiao_end_date,user):
         }
         day_sign = user_id + "day" + plan_id + "日报" + "3478cbbc33f84bd00d75d7dfa69e0daa"
         headers.update({'sign': md5_encrypt(day_sign)})
-        logging.infot('用户：' + user['phone'] + f"开始写{report_time}的日报")
+        logging.info('用户：' + user['phone'] + f"开始写{report_time}的日报")
         time.sleep(random.randint(10, 30))
         rsp = requests.post(url="https://api.moguding.net:9000/practice/paper/v5/save", headers=headers, data=json.dumps(data))
-        print(user['phone']+"补交日报返回值",rsp.text)
-        if rsp.get("code") == 200:
-            logging.info('用户：' + user['phone']+"补交日报已提交","日期"+ start)
+        logging.info(user['phone']+"补交日报返回值",rsp.text)
+        if isinstance(rsp, dict): 
+            if rsp.get("code") == 200:
+                logging.info('用户：' + user['phone']+"补交日报已提交","日期"+ start.strftime('%Y-%m-%d'))
+            else:
+                logging.info('用户：' + user['phone']+"补交日报提交失败","日期"+ start.strftime('%Y-%m-%d'))
+                continue
         else:
-            logging.info('用户：' + user['phone']+"补交日报提交失败","日期"+ start)
+            logging.info('响应数据不是JSON格式:', rsp.text)
         # 递增日期
         start += timedelta(days=1)
 
@@ -269,10 +272,13 @@ def tijioa_dayk(user,plan_id, user_id):
     headers.update({'sign': md5_encrypt(day_sign)})
     rsp = requests.post(url="https://api.moguding.net:9000/practice/paper/v2/save", headers=headers, data=json.dumps(data))
     logging.info(user['phone']+"提交日报返回值"+ rsp.text)
-    if rsp.get("code") == 200:
-        logging.info('用户：' + user['phone']+"日报已提交")
+    if isinstance(rsp, dict):
+        if rsp.get("code") == 200:
+            logging.info('用户：' + user['phone']+"日报已提交")
+        else:
+            logging.info('用户：' + user['phone']+"日报提交失败")
     else:
-        logging.info('用户：' + user['phone']+"日报提交失败")
+        logging.info("日报返回值出现问题")
 #读取周报文件
 def get_random_week():
     with open(r'./basic_info/week_diary', 'r',encoding="utf-8") as f:
@@ -315,10 +321,13 @@ def submit_week(user,plan_id, user_id):
     headers.update({'sign': md5_encrypt(week_sign)})
     rsp = requests.post(url="https://api.moguding.net:9000/practice/paper/v2/save", headers=headers, data=json.dumps(data))
     logging.info(user['phone']+"提交周报返回值",rsp.text)
-    if rsp.get("code") == 200:
-        logging.info('用户：' + user['phone']+"周报已提交")
+    if isinstance(rsp, dict) :
+        if rsp.get("code") == 200:
+            logging.info('用户：' + user['phone']+"周报已提交")
+        else:
+            logging.info('用户：' + user['phone']+"周报提交失败")
     else:
-        logging.info('用户：' + user['phone']+"周报提交失败")
+        logging.info("周报提交失败")
 # 将用户令牌和user_id保存到 user_info.json
 def save_user_info(phone, token, user_id):
     with open('user_info.json', 'r', encoding='utf-8') as file:
@@ -356,15 +365,11 @@ def main(log_url):
             "content-type": "application/json; charset=UTF-8",
             "user-agent": getUserAgent()
             }
-            rsp = requests.post(url=log_url, headers=headers2, data=json.dumps(data)).json()
-            if rsp.json()["code"] == 200:
-                logging.info('用户：' + user['phone']+"登录成功")
-                MessagePush.pushMessage('工学云' ,'用户：' + user['phone']+ '登陆成功' , tokentu)
-            else:
-                logging.info('用户：' + user['phone']+"登录失败")
-                MessagePush.pushMessage('工学云' ,'用户：' + user['phone']+ '登录失败' , tokentu)       
+            rsp = requests.post(url=log_url, headers=headers2, data=json.dumps(data)).json()     
             # 假设成功响应具有关键“数据”
             if rsp.get("data"):
+                logging.info('用户：' + user['phone']+"登录成功")
+                # MessagePush.pushMessage('工学云' ,'用户：' + user['phone']+ '登陆成功' , tokentu)
                 data = rsp["data"]
                 token = data["token"]
                 user_id = data["userId"]
@@ -397,13 +402,13 @@ def main(log_url):
                 rsp = requests.post(url="https://api.moguding.net:9000/attendence/clock/v2/save", headers=headers2, data=json.dumps(data2))
                 if rsp.json()["code"] == 200 and rsp.json()["msg"]:
                     logging.info('用户：' + user['phone']+"打卡成功")
-                    MessagePush.pushMessage('工学云' ,'用户：' + user['phone']+ '打卡成功' , tokentu)
+                    # MessagePush.pushMessage('工学云' ,'用户：' + user['phone']+ '打卡成功' , tokentu)
                 else:
                     logging.info('用户：' + user['phone']+"打卡失败")
-                    MessagePush.pushMessage('工学云' ,'用户：' + user['phone']+ '打卡失败' , tokentu)
+                    # MessagePush.pushMessage('工学云' ,'用户：' + user['phone']+ '打卡失败' , tokentu)
+                # 开始写日报
                 if 9 <= hourNow < 10:
                     logging.info('用户：' + user['phone']+"开始写日报")
-                # 开始写日报
                     tijioa_dayk(plan_id,user_id,user)
                 # 补交日报
                 if user.get('bujiao',False):
@@ -418,7 +423,7 @@ def main(log_url):
                 if user.get('reedy',False):
                     logging.info('用户：' + user['phone']+"开始补交周报")
                     weeks = get_weeks(plan_id)
-                    not_submit_week = weeks[:user['requirement_week_num'] + 1]
+                    not_submit_week = weeks[:int(user['requirement_week_num']) + 1]
                     not_submit_week.reverse()
                     # 第几周的周报
                     content_entry = get_random_week()
@@ -434,26 +439,27 @@ def main(log_url):
                         data["weeks"] = f'第{str(after_week)}周'
                         data["content"] = content_entry['content']
                         rsp = requests.post(url="https://api.moguding.net:9000/practice/paper/v2/save", headers=headers, data=json.dumps(data))
+                    del user["reedy"]
+                    del user["requirement_week_num"]                           
             else:
-                logging.info(f"用户登录失败 {user['phone']}")
-                MessagePush.pushMessage('工学云' ,'用户：' + user['phone']+ '登录失败账号或密码错误' , tokentu)
-                continue
-            del user["reedy"]
-            del user["requirement_week_num"]                
+                logging.info(f"用户登录失败 {user['phone']},登录失败账号或密码错误")
+                # MessagePush.pushMessage('工学云' ,'用户：' + user['phone']+ '登录失败账号或密码错误' , tokentu)
+                continue            
                     # 获取当前日期和时间
             current_datetime = datetime.now()
                 # 从当前日期中提取日期和星期几
             current_weekday = current_datetime.strftime('%A')
                 # 开始提交周报
             if current_weekday=="Sunday":
-                logging.info('用户：' + user['phone']+"开始写周报")
-                submit_week(plan_id, user_id,user)
+                if 9 <= hourNow < 10:
+                    logging.info('用户：' + user['phone']+"开始写周报")
+                    submit_week(plan_id, user_id,user)
         else:
             logging.info('自动登录对于用户 {}'.format(user["phone"]))
             user_id = user["user_id"]
             token=user["token"]
             plan_id  = get_plan(token, user_id,user) 
-            logging.info('用户：' + user['phone']+"开始签到")          
+            logging.info('用户：' + user['phone']+"开始签到")   
             # 开始签到
             hourNow = datetime.now(pytz.timezone('PRC')).hour
             if hourNow < 12:
@@ -479,26 +485,29 @@ def main(log_url):
                         "planId": plan_id, "province": user['province'], "type": signType}
             rsp = requests.post(url="https://api.moguding.net:9000/attendence/clock/v2/save", headers=headers2, data=json.dumps(data2))
             if rsp.json()["code"] == 200 and rsp.json()["msg"]:
-                MessagePush.pushMessage('工学云' ,'用户：' + user['phone']+ '打卡成功' , tokentu)
+                logging.info('用户：' + user['phone']+"打卡成功")
+                # MessagePush.pushMessage('工学云' ,'用户：' + user['phone']+ '打卡成功' , tokentu)
             else:
-                MessagePush.pushMessage('工学云' ,'用户：' + user['phone']+ '打卡失败' , tokentu)
+                logging.info('用户：' + user['phone']+"打卡失败")
+                # MessagePush.pushMessage('工学云' ,'用户：' + user['phone']+ '打卡失败' , tokentu)
             # 8点到9点开始写日报
             if 9 <= hourNow < 10:
                 logging.info('用户：' + user['phone']+"开始写日报")
                 tijioa_dayk(plan_id,user_id,user)
+                logging.info('用户：' + user['phone']+"成功提交日报")
                 # 补交日报
             if user.get('bujiao',False):
                 logging.info('用户：' + user['phone']+"开始补交日报")
                 bujiao_start_date=user['bujiao_start_date']
                 bujiao_end_date=user['bujiao_end_date']
                 bujiao_day(plan_id, user_id, bujiao_start_date, bujiao_end_date,user)
-                del user["bujiao"]      
+                del user["bujiao"]    
                 del user["bujiao_start_date"]
                 del user["bujiao_end_date"]
             if user.get('reedy',False):
                 logging.info('用户：' + user['phone']+"开始补交周报")
                 weeks = get_weeks(plan_id)
-                not_submit_week = weeks[:user['requirement_week_num'] + 1]
+                not_submit_week = weeks[:int(user['requirement_week_num']) + 1]
                 not_submit_week.reverse()
                 # # 第几周的周报
                 content_entry = get_random_week()
@@ -506,14 +515,24 @@ def main(log_url):
                 for i in not_submit_week:
                     time.sleep(30)
                     after_week = get_week_count(plan_id, user_id) + 1
-                    headers.update({'sign': md5_encrypt(week_sign)})
                     week_end = i["endTime"]
-                    data["t"] = aes_encrypt(time_shift(week_end) - 36000 + 1000)
-                    data["startTime"] = i['startTime']
-                    data["endTime"] = week_end
-                    data["weeks"] = f'第{str(after_week)}周'
-                    data["content"] = content_entry['content']
+                    data = {
+                        "yearmonth": "",
+                        "address": "",
+                        "t": aes_encrypt(time_shift(week_end) - 36000 + 1000),
+                        "title": "周报",
+                        "longitude": "0.0",
+                        "latitude": "0.0",
+                        "weeks": f'第{str(after_week)}周',
+                        "endTime": week_end,
+                        "startTime": i['startTime'],
+                        "planId": plan_id,
+                        "reportType": "week",
+                        "content": content_entry
+                    }           
+                    headers.update({'sign': md5_encrypt(week_sign)})
                     rsp = requests.post(url="https://api.moguding.net:9000/practice/paper/v2/save", headers=headers, data=json.dumps(data))
+                    logging.info('用户：' + user['phone'] + "已提交" + str(week_end))
                 del user["reedy"]
                 del user["requirement_week_num"]
             # 开始提交周报
@@ -522,8 +541,9 @@ def main(log_url):
             # 从当前日期中提取日期和星期几
             current_weekday = current_datetime.strftime('%A')
             if current_weekday=="Sunday":
-                logging.info('用户：' + user['phone']+"开始写周报")
-                submit_week(plan_id, user_id,user)
+                if 9 <= hourNow < 10:
+                    logging.info('用户：' + user['phone']+"开始写周报")
+                    submit_week(plan_id, user_id,user)
 
 if __name__ == '__main__':
     log_url='https://api.moguding.net:9000/session/user/v3/login'
