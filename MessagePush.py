@@ -13,10 +13,9 @@
 # You should have received a copy of the GNU General Public License
 # along with GongXueYun.  If not, see <https://www.gnu.org/licenses/>.
 
-
 import requests
 # PushPlus
-def pushMessage(phone, title, content, token):
+def pushMessage(title, content, token):
     url = 'http://www.pushplus.plus/send?token=' + token + '&title=' + title + '&content=' + content + '&template=html'
     resp = requests.post(url)
     if resp.json()["code"] == 200:

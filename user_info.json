@@ -1,32 +1,19 @@
 [
     {
-        "phone": "", //账号 
-        "password": "", //密码
-        "address": "",//详细地址格式为：xx省 · xx市 · xx区 · 在xx
-        "province": "", //xx省
-        "city": "",//xx市
-        "area": "",//xx区
-        "latitude": "",//经度
-        "longitude": "",//纬度
-        "bujiao":"",//是否开启补交日报
-        "bujiao_start_date":"",//补交日报的开始日期格式为2023-7-01
-        "bujiao_end_date":"",//补交日报的结束日期格式为2023-7-01
-        "reedy":"",//是否开启补交周报
-        "requirement_week_num":""//补交周报的周数
-    },
-    {
-        "phone": "", //账号 
-        "password": "", //密码
-        "address": "",//详细地址格式为：xx省 · xx市 · xx区 · 在xx
-        "province": "", //xx省
-        "city": "",//xx市
-        "area": "",//xx区
-        "latitude": "",//经度
-        "longitude": "",//纬度
-        "bujiao":"",//是否开启补交日报
-        "bujiao_start_date":"",//补交日报的开始日期格式为2023-7-01
-        "bujiao_end_date":"",//补交日报的结束日期格式为2023-7-01
-        "reedy":"",//是否开启补交周报
-        "requirement_week_num":""//补交周报的周数
+        "phone": "18980091352",
+        "password": "Dyz123456",
+        "address": "\u56db\u5ddd\u7701 \u00b7 \u6210\u90fd\u5e02 \u00b7 \u9f99\u6cc9\u9a7f\u533a \u00b7 \u5728\u56db\u5ddd\u57ce\u5e02\u804c\u4e1a\u5b66\u9662\uff08\u6210\u90fd\u6821\u533a\uff09\u9644\u8fd1",
+        "province": "\u56db\u5ddd\u7701",
+        "city": "\u6210\u90fd\u5e02",
+        "area": "\u9f99\u6cc9\u9a7f\u533a",
+        "latitude": "30.609558",
+        "longitude": "104.163635",
+        "bujiao": "",
+        "bujiao_start_date": "",
+        "bujiao_end_date": "",
+        "reedy": "",
+        "requirement_week_num": "",
+        "token": "eyJhbGciOiJIUzUxMiJ9.eyJpc3MiOiJtb2d1ZGluZy11c2VyIiwic3ViIjoie1wibG9naW5UeXBlXCI6XCJhbmRyb2lkXCIsXCJ1c2VySWRcIjoxMDQ5ODgwMzN9IiwiYXVkIjoibW9ndWRpbmciLCJleHAiOjIwMTA4ODAzMzEsIm5iZiI6MTY5NTI2MDIzMSwiaWF0IjoxNjk1MjYxMTMxfQ.ZyRhilQi0DLLSTxX8tDD1fsxsPtZhKU_j3SuxnR9cf0peHxmJrnVfKh_aLBuZtGoAuEKBXjCo_Ov9uGdKETIVA",
+        "user_id": "104988033"
     }
 ]
