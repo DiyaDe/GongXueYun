@@ -131,7 +131,7 @@ def login(user):
         logging.info("登录用户" + user["phone"] + "账号或密码错误")
         return None, None
 
-def get_plan(token, user_id, user):
+def get_plan(token: str, user_id: str, user):
     max_retries = 3
 
     for _ in range(max_retries):
@@ -173,7 +173,7 @@ def get_weeks(plan_id):
     logging.info(rsp)
     return rsp['data'][:20]
 # 获取提交周报次数
-def get_week_count(plan_id, user_id):
+def get_week_count(plan_id: str, user_id: str):
     """
     :param plan_id:
     :return: 提交周报次数
@@ -202,7 +202,7 @@ def random_time():
 # 补交日报
 # bujiao_end_date补交起始日期
 # bujiao_end_date补交结束日期
-def bujiao_day(plan_id, user_id, bujiao_start_date, bujiao_end_date,user):
+def bujiao_day(plan_id: str, user_id: str, bujiao_start_date: str, bujiao_end_date: str,user):
     """
     :param plan_id:
     :param user_id:
@@ -255,7 +255,7 @@ def bujiao_day(plan_id, user_id, bujiao_start_date, bujiao_end_date,user):
         start += timedelta(days=1)
 
 # 提交日报
-def tijioa_dayk(user,plan_id, user_id):
+def tijioa_dayk(user,plan_id: str, user_id: str):
     """
     :param url:
     :param plan_id:
@@ -299,7 +299,7 @@ def get_random_week():
     return entry
 
 # 提交周报
-def submit_week(user,plan_id, user_id):
+def submit_week(user,plan_id: str, user_id: str):
     """
     提交周报
     :param url:
@@ -343,7 +343,7 @@ def submit_week(user,plan_id, user_id):
         weekly_report_status(user['phone'], rsp.text)
 
 # 将用户令牌和user_id保存到 user_info.json
-def save_user_info(phone, token, user_id):
+def save_user_info(phone: str, token: str, user_id: str):
     # 连接数据库
     connection, cursor = get_db_connection()
     try:
@@ -369,7 +369,7 @@ def save_user_info(phone, token, user_id):
         connection.close()
 
 # 更新日报提交状态
-def daily_report_status(phone, status):
+def daily_report_status(phone: str, status: str):
     # 创建数据库连接
     connection, cursor = get_db_connection()
     try:
@@ -384,7 +384,7 @@ def daily_report_status(phone, status):
         connection.close()
 
 # 更新周报提交状态
-def weekly_report_status(phone, status):
+def weekly_report_status(phone: str, status: str):
     # 创建数据库连接
     connection, cursor = get_db_connection()
     try:
@@ -399,7 +399,7 @@ def weekly_report_status(phone, status):
         connection.close()
 
 # 更新打卡状态
-def update_punch_status(phone, status):
+def update_punch_status(phone: str, status: str):
     # 创建数据库连接
     connection, cursor = get_db_connection()
     try:
@@ -414,23 +414,29 @@ def update_punch_status(phone, status):
         connection.close()
 
 # 更新打卡天数
-def update_days(phone):
+def update_days(phone: str):
     connection, cursor = get_db_connection()
     try:
         # 先查询当前用户的 days 值
         cursor.execute("SELECT days FROM users WHERE phone = %s", (phone,))
         result = cursor.fetchone()
         if result is not None:
-            days = result['days']
-            # 如果 days 是整数且大于 0，则执行更新操作
-            if isinstance(days, int) and days > 0:
-                sql = "UPDATE users SET days = days - 1 WHERE phone = %s"
-                cursor.execute(sql, (phone,))
-                connection.commit()
-            elif days == '打卡天数已到期':
-                logging.info(f"用户: {phone} 打卡天数已到期，跳过更新")
-            else:
-                logging.warning(f"用户: {phone} days 值异常：{days}")
+            days_str = result['days']
+            try:
+                # 尝试将 days 转换为整数
+                days = int(days_str)
+                if days > 0:
+                    # 如果 days 是正整数，则执行更新操作
+                    sql = "UPDATE users SET days = days - 1 WHERE phone = %s"
+                    cursor.execute(sql, (phone,))
+                    connection.commit()
+                else:
+                    logging.warning(f"用户: {phone} days 值非正整数：{days}")
+            except ValueError:
+                if days_str == '打卡天数已到期':
+                    logging.info(f"用户: {phone} 打卡天数已到期，跳过更新")
+                else:
+                    logging.warning(f"用户: {phone} days 值异常：{days_str}")
         else:
             logging.warning(f"未找到用户: {phone}")
     except Exception as e:
@@ -440,7 +446,7 @@ def update_days(phone):
         connection.close()
 
 # 执行打卡日报周报
-def zong(user,user_id,plan_id,token):
+def zong(user,user_id: str,plan_id: str,token: str):
         logging.info("开始打卡")
         hourNow = datetime.now(pytz.timezone('PRC')).hour
         if hourNow < 12:
@@ -477,9 +483,9 @@ def zong(user,user_id,plan_id,token):
             # 当打卡失败时，调用这个函数并将状态设为API的返回值或错误信息
             update_punch_status(user['phone'], rsp.text)
         # 开始写日报
-        if 9 <= hourNow < 12:
+        if 9 <= hourNow < 13:
                     logging.info('用户：' + user['phone']+"开始写日报")
-                    tijioa_dayk(plan_id,user_id,user)
+                    tijioa_dayk(user,plan_id, user_id)
         # 补交日报
         if user.get('bujiao',False):
             logging.info('用户：' + user['phone']+"开始补交日报")
@@ -557,7 +563,7 @@ def zong(user,user_id,plan_id,token):
                 cursor.close()
                 connection.close()  
 # 周末提交周报
-def zhong(plan_id, user_id,user):
+def zhong(plan_id: str, user_id: str,user):
     # 获取当前时间
     hourNow = datetime.now(pytz.timezone('PRC')).hour
     # 获取当前日期和时间
@@ -581,19 +587,6 @@ def get_db_connection():
     # 连接数据库并返回连接对象
     connection = mysql.connector.connect(**db_config)
     return connection, connection.cursor(dictionary=True)
-# 打卡日期为0就删除这个用户信息
-def delete_user(phone):
-    connection, cursor = get_db_connection()
-    try:
-        # 删除用户数据
-        sql = "DELETE FROM users WHERE phone = %s"
-        cursor.execute(sql, (phone,))
-        connection.commit()
-    except Exception as e:
-        logging.error("删除用户时出错: " + phone, exc_info=True)
-    finally:
-        cursor.close()
-        connection.close()
 # 主函数
 def main(users):
     # 对每个用户数据进行转换
@@ -651,7 +644,7 @@ def main(users):
             token=user["token"]
             plan_id ,token= get_plan(token, user_id,user) 
             logging.info('用户：' + user['phone']+"开始签到")   
-            # 开始签到
+            # # 开始签到
             zong(user,user_id,plan_id,token)  
             # 开始提交周报
             zhong(plan_id, user_id,user)
