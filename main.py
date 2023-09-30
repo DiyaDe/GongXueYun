@@ -160,7 +160,6 @@ def update_days(phone: str):
         cursor.close()
         connection.close()
 
-#随机user-agent
 def getUserAgent():
     user= random.choice(
         [
@@ -189,6 +188,7 @@ def getUserAgent():
             'Mozilla/5.0 (Linux; Android 7.0; Mi-4c Build/NRD91M; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/67.0.3396.87 XWEB/1169 MMWEBSDK/191201 Mobile Safari/537.36 MMWEBID/2208 MicroMessenger/7.0.10.1580(0x27010AFF) Process/tools NetType/4G Language/zh_CN ABI/arm64',
                 ])
     return user
+
 headers = {
     'Host': 'api.moguding.net:9000',
     'accept-language': 'zh-CN,zh;q=0.8',
