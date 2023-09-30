@@ -49,14 +49,6 @@ def time_shift(date):
     time_array = time.strptime(date, "%Y-%m-%d %H:%M:%S")
     time_stamp = int(time.mktime(time_array))
     return time_stamp
-def day_shift(date):
-    """
-    :param time:
-    :return: 将时间转成时间戳
-    """
-    time_array = time.strptime(date, "%Y-%m-%d %H:%M:%S")
-    time_stamp = int(time.mktime(time_array))
-    return time_stamp
 # 获取任务加密
 def md5_encrypt(data):
     """
@@ -333,7 +325,7 @@ def bujiao_day(plan_id: str, user_id: str, bujiao_start_date: str, bujiao_end_da
         data = {
             "yearmonth": "",
             "address": "",
-            "t": aes_encrypt(int(str(day_shift(day_end)) + "000") - 3600).upper(),
+            "t": aes_encrypt(int(str(time_shift(day_end)) + "000") - 3600).upper(),
             'reportTime': report_time, # 使用当前日期作为reportTime
             "title": "日报",
             "longitude": "0.0",
@@ -383,7 +375,7 @@ def tijioa_dayk(user,plan_id, user_id,token):
     data = {
         "yearmonth": "",
         "address": "",
-        "t": aes_encrypt(int(str(day_shift(day_end)) + "000") - 3600).upper(),
+        "t": aes_encrypt(int(str(time_shift(day_end)) + "000") - 3600).upper(),
         "title": "日报",
         'reportTime':day_end,
         "longitude": "0.0",
@@ -649,88 +641,98 @@ def get_db_connection():
     # 连接数据库并返回连接对象
     connection = mysql.connector.connect(**db_config)
     return connection, connection.cursor(dictionary=True)
+
+def check_user_days(user):
+    """检查用户的打卡天数并更新数据库和用户信息（如有必要）"""
+    days = user['days']
+    if days == '打卡天数已到期' or (isinstance(days, int) and days <= 0):
+        logging.info(f"用户: {user['phone']} 打卡天数已到期或天值小于等于0,跳过打卡操作")
+        return False
+    connection, cursor = get_db_connection()
+    try:
+        days_int = int(days)
+        if days_int <= 0:
+            logging.warning(f"天值小于或等于0,更新用户状态:{user['phone']}")
+            cursor.execute("UPDATE users SET days = %s WHERE phone = %s", ("打卡天数已到期", user['phone']))
+            connection.commit()
+            user['days'] = '打卡天数已到期'
+            return False
+    except ValueError:
+        logging.info(f"用户:{user['phone']} days 不是整数，不执行操作")
+    finally:
+        cursor.close()
+        connection.close()
+    return True
+
+def transform_user_data(user):
+    """转换用户数据的类型，如 Decimal 到 float, int 到 bool 等"""
+    # 将 Decimal 类型转换为 float
+    user['latitude'] = float(user['latitude'])
+    user['longitude'] = float(user['longitude'])
+    # 将整数转换为布尔值
+    user['bujiao'] = bool(user['bujiao'])
+    user['reedy'] = bool(user['reedy'])
+    user['xuanbujiao'] = bool(user['xuanbujiao'])
+    user['zhobao'] = bool(user['zhobao'])
+    # 将 datetime.date 类型转换为字符串
+    if user['bujiao_start_date'] is not None:
+        user['bujiao_start_date'] = user['bujiao_start_date'].strftime('%Y-%m-%d')
+    else:
+        user['bujiao_start_date'] = ''  # 将日期字段设置为空字符串
+    if user['bujiao_end_date'] is not None:
+        user['bujiao_end_date'] = user['bujiao_end_date'].strftime('%Y-%m-%d')
+    else:
+        user['bujiao_end_date'] = ''  # 将日期字段设置为空字符串
+
+# 处理签到和周报提交
+def handle_sign_in_and_report(user, user_id, plan_id, token):
+    zong(user, user_id, plan_id, token)
+    if user['zhobao']:
+        zhong(plan_id, user_id, user, token)
+        logging.info('用户：' + user['phone'] + "已提交周报程序执行完成")
+        print('用户：' + user['phone'] + "已提交周报程序执行完成")
+    else:
+        logging.info('用户：' + user['phone'] + "无提交周报程序执行完成")
+        print('用户：' + user['phone'] + "无提交周报程序执行完成")
+
+# 处理登录和获取令牌
+def handle_login_and_token(user):
+    if not user.get("token"):
+        logging.info('手动登录' + user["phone"])
+        token, user_id = login(user)
+        if token is None and user_id is None:
+            logging.warning("登录失败，跳过用户：" + user["phone"])
+            return None, None
+    else:
+        logging.info('自动登录对于用户 {}'.format(user["phone"]))
+        user_id = user["user_id"]
+        token = user["token"]
+
+    plan_id, token = get_plan(token, user_id, user)
+    if plan_id is None and token is None:
+        logging.warning("获取plan_id失败，跳过用户：" + user["phone"])
+        return None, None
+
+    return user_id, token, plan_id
+
 # 主函数
 def main(users):
     # 对每个用户数据进行转换
     for user in users:
         try:
-            days = user['days']
-            if days == '打卡天数已到期' or (isinstance(days, int) and days <= 0):
-                logging.info(f"用户: {user['phone']} 打卡天数已到期或天值小于等于0,跳过打卡操作")
+            if not check_user_days(user):
                 continue
-            connection, cursor = get_db_connection()
-            try:
-                days_int = int(days)
-                if days_int <= 0:
-                    logging.warning(f"天值小于或等于0,更新用户状态:{user['phone']}")
-                    # 更新数据库中的 days 列
-                    cursor.execute("UPDATE users SET days = %s WHERE phone = %s", ("打卡天数已到期", user['phone']))
-                    connection.commit()
-                    # 同时更新程序中的 days 变量
-                    user['days'] = '打卡天数已到期'
-                    continue  # 更新后，跳过当前用户的后续处理
-            except ValueError:
-                logging.info(f"用户:{user['phone']} days 不是整数，不执行操作")
-            finally:
-                cursor.close()
-                connection.close()
-            # 将 Decimal 类型转换为 float
-            user['latitude'] = float(user['latitude'])
-            user['longitude'] = float(user['longitude'])
-            # 将整数转换为布尔值
-            user['bujiao'] = bool(user['bujiao'])
-            user['reedy'] = bool(user['reedy'])
-            user['xuanbujiao'] = bool(user['xuanbujiao'])
-            user['zhobao'] = bool(user['zhobao'])
-            # 将 datetime.date 类型转换为字符串
-            if user['bujiao_start_date'] is not None:
-                user['bujiao_start_date'] = user['bujiao_start_date'].strftime('%Y-%m-%d')
-            else:
-                user['bujiao_start_date'] = ''  # 将日期字段设置为空字符串
-            if user['bujiao_end_date'] is not None:
-                user['bujiao_end_date'] = user['bujiao_end_date'].strftime('%Y-%m-%d')
-            else:
-                user['bujiao_end_date'] = ''  # 将日期字段设置为空字符串
+            transform_user_data(user)
             # 如果用户没有令牌，则登录并获取令牌并user_id
-            if not user.get("token"):
-                logging.info('手动登录'+ user["phone"])
-                token, user_id = login(user)#可能会返回空值，需要判断
-                if token is None and user_id is None:
-                    logging.warning("登录失败，跳过用户：" + user["phone"])
-                    continue
-                plan_id , token= get_plan(token, user_id,user)
-                if plan_id is None and token is None:
-                    logging.warning("获取plan_id失败，跳过用户：" + user["phone"])
-                    continue
-                # 开始签到
-                zong(user,user_id,plan_id,token)
-                # 开始提交周报
-                if user['zhobao']==True:
-                    zhong(plan_id, user_id,user,token)
-                    logging.info('用户：' + user['phone']+"已提交周报程序执行完成")
-                    print('用户：' + user['phone']+"已提交周报程序执行完成")
-                else:
-                    logging.info('用户：' + user['phone']+"无提交周报程序执行完成")
-                    print('用户：' + user['phone']+"无提交周报程序执行完成")
-            else:
-                logging.info('自动登录对于用户 {}'.format(user["phone"]))
-                user_id = user["user_id"]
-                token=user["token"]
-                plan_id ,token= get_plan(token, user_id,user) 
-                logging.info('用户：' + user['phone']+"开始签到")   
-                # # 开始签到
-                zong(user,user_id,plan_id,token)  
-                # 开始提交周报
-                if user['zhobao']==True:
-                    zhong(plan_id, user_id,user,token)
-                    logging.info('用户：' + user['phone']+"已提交周报程序执行完成")
-                    print('用户：' + user['phone']+"已提交周报程序执行完成")
-                else:
-                    logging.info('用户：' + user['phone']+"无提交周报程序执行完成")
-                    print('用户：' + user['phone']+"无提交周报程序执行完成")
+            user_id, token, plan_id = handle_login_and_token(user)
+            if user_id is None or token is None or plan_id is None:
+                continue
+            # 开始提交周报和开始签到
+            handle_sign_in_and_report(user, user_id, plan_id, token)
         except Exception as e:
             logging.error(f"处理用户时出错 {user['phone']}: {e}")
             continue
+
 if __name__ == '__main__':
     connection, cursor = get_db_connection()
     # 查询所有用户信息
