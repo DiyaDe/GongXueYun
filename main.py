@@ -58,7 +58,8 @@ def md5_encrypt(data):
     return hashlib.md5(data.encode("utf-8")).hexdigest()
 
 # 将用户令牌和user_id保存到 user_info.json
-def save_user_info(phone: str, token: str, user_id: str):
+
+def save_user_info(phone, token, user_id):
     # 连接数据库
     connection, cursor = get_db_connection()
     try:
@@ -84,7 +85,7 @@ def save_user_info(phone: str, token: str, user_id: str):
         connection.close()
 
 # 更新日报提交状态
-def daily_report_status(phone: str, status: str):
+def daily_report_status(phone, status):
     # 创建数据库连接
     connection, cursor = get_db_connection()
     try:
@@ -99,7 +100,7 @@ def daily_report_status(phone: str, status: str):
         connection.close()
 
 # 更新周报提交状态
-def weekly_report_status(phone: str, status: str):
+def weekly_report_status(phone, status):
     # 创建数据库连接
     connection, cursor = get_db_connection()
     try:
@@ -114,7 +115,7 @@ def weekly_report_status(phone: str, status: str):
         connection.close()
 
 # 更新打卡状态
-def update_punch_status(phone: str, status: str):
+def update_punch_status(phone, status):
     # 创建数据库连接
     connection, cursor = get_db_connection()
     try:
@@ -129,7 +130,7 @@ def update_punch_status(phone: str, status: str):
         connection.close()
 
 # 更新打卡天数
-def update_days(phone: str):
+def update_days(phone):
     connection, cursor = get_db_connection()
     try:
         # 先查询当前用户的 days 值
@@ -160,6 +161,35 @@ def update_days(phone: str):
         cursor.close()
         connection.close()
 
+#读取日报文件
+def get_random_diary_content():
+    with open(r'./basic_info/day_diary', 'r',encoding="utf-8") as f:
+        diary_entries = json.load(f)
+        entry = random.choice(diary_entries)['content']
+    return entry
+
+#读取周报文件
+def get_random_week():
+    with open(r'./basic_info/week_diary', 'r',encoding="utf-8") as f:
+        diary_entries = json.load(f)
+        entry = random.choice(diary_entries)['content']
+    return entry
+
+# 连接数据库
+def get_db_connection():
+    # 数据库配置
+    db_config = {
+        'host': "",#服务器ip/127.0.0.1
+        'user': "gongxueyun",#用户名
+        'password': "",#数据库密码
+        'database': "gongxueyun",#数据库名称
+        'port': 3306  # 更正键名/数据库端口默认3306
+    }
+    # 连接数据库并返回连接对象
+    connection = mysql.connector.connect(**db_config)
+    return connection, connection.cursor(dictionary=True)
+
+# 随机user-agent
 def getUserAgent():
     user= random.choice(
         [
@@ -227,7 +257,7 @@ def login(user):
         logging.info("登录用户" + user["phone"] + "账号或密码错误")
         return None, None
 
-def get_plan(token: str, user_id: str, user):
+def get_plan(token, user_id, user):
     max_retries = 3
     sleep_time = 5  # 设置重试间隔时间
     headers = {
@@ -286,13 +316,6 @@ def get_plan(token: str, user_id: str, user):
     logging.info(user["phone"] + "经过多次尝试，未能成功获取plan_id")
     return None, None
 
-#读取日报文件
-def get_random_diary_content():
-    with open(r'./basic_info/day_diary', 'r',encoding="utf-8") as f:
-        diary_entries = json.load(f)
-        entry = random.choice(diary_entries)['content']
-    return entry
-
 #生成补交日报的随机时分秒
 def random_time():
     hour = randint(7, 22)
@@ -300,33 +323,26 @@ def random_time():
     second = randint(0, 59)
     return f"{hour:02}:{minute:02}:{second:02}"
 
-# 补交日报
-# bujiao_end_date补交起始日期
-# bujiao_end_date补交结束日期
-def bujiao_day(plan_id: str, user_id: str, bujiao_start_date: str, bujiao_end_date: str,user,token):
+def submit_report(user, plan_id, user_id, token, bujiao_start_date=None, bujiao_end_date=None):
     """
-    :param plan_id:
-    :param user_id:
-    :param start_date: 起始日期
-    :param end_date: 结束日期
-    :return:
+    提交或补交日报。
+    :param bujiao_start_date: 开始日期，如果为空，则为今天提交日报。
+    :param bujiao_end_date: 结束日期，如果为空，则只提交bujiao_start_date当天的日报。
     """
-    # 解析日期
+    if not bujiao_start_date:  # 如果没有指定开始日期，则为今天提交日报
+        bujiao_start_date = datetime.now().strftime('%Y-%m-%d')
+    if not bujiao_end_date:
+        bujiao_end_date = bujiao_start_date
     start = datetime.strptime(bujiao_start_date, '%Y-%m-%d')
     end = datetime.strptime(bujiao_end_date, '%Y-%m-%d')
-    # 获取当前时间
-    now = datetime.now()
-    day_end = now.strftime('%Y-%m-%d %H:%M:%S')
-    # 遍历日期范围并补交日报
     while start <= end:
         report_time = start.strftime(f'%Y-%m-%d {random_time()}')
-        # 获取随机日记内容并与当前日期相结合以确保唯一性
         content = get_random_diary_content() + f"\n\n{report_time}"
         data = {
             "yearmonth": "",
             "address": "",
-            "t": aes_encrypt(int(str(time_shift(day_end)) + "000") - 3600).upper(),
-            'reportTime': report_time, # 使用当前日期作为reportTime
+            "t": aes_encrypt(int(str(time_shift(report_time)) + "000") - 3600).upper(),
+            'reportTime': report_time,
             "title": "日报",
             "longitude": "0.0",
             "latitude": "0.0",
@@ -334,85 +350,29 @@ def bujiao_day(plan_id: str, user_id: str, bujiao_start_date: str, bujiao_end_da
             "reportType": "day",
             "content": content
         }
+        time.sleep(60)
         day_sign = user_id + "day" + plan_id + "日报" + "3478cbbc33f84bd00d75d7dfa69e0daa"
         headers.update({
             'sign': md5_encrypt(day_sign),
-            "authorization":token
+            "authorization": token
         })
-        logging.info('用户：' + user['phone'] + f"开始写{report_time}的日报")
-        time.sleep(random.randint(10, 30))
         rsp = requests.post(url="https://api.moguding.net:9000/practice/paper/v5/save", headers=headers, data=json.dumps(data))
         rsp_json = rsp.json()
-        logging.info(user['phone'] + "补交日报返回值 %s", rsp.text)
-        if isinstance(rsp_json, dict):
-            if rsp_json.get("code") == 200:
-                logging.info('用户：%s 补交日报已提交，日期%s', user['phone'], start.strftime('%Y-%m-%d'))
-            elif rsp_json.get("code") == 500:
-                logging.info('用户：%s 今天已经写过日报，日期%s', user['phone'], start.strftime('%Y-%m-%d'))
-                start += timedelta(days=1)
-                continue
-        else:
-            logging.info('%s 响应数据不是JSON格式: %s', user['phone'], rsp.text)
+        if rsp_json.get("code") == 200:
+            logging.info('用户：%s 日报已提交，日期%s', user['phone'], start.strftime('%Y-%m-%d'))
+            daily_report_status(user['phone'],"日报提交成功")
+        elif rsp_json.get("code") == 500:
+            logging.info('用户：%s 今天已经写过日报，日期%s', user['phone'], start.strftime('%Y-%m-%d'))
+            daily_report_status(user['phone'], rsp.text)
             start += timedelta(days=1)
             continue
-        # 递增日期
+        else:
+            logging.info('%s 响应数据不是期望的格式: %s', user['phone'], rsp.text)
         start += timedelta(days=1)
-
-# 提交日报
-def tijioa_dayk(user,plan_id, user_id,token):
-    """
-    :param url:
-    :param plan_id:
-    :param user_id:
-    :return:
-    """
-    # 获取当前时间
-    now = datetime.now()
-    day_end = now.strftime('%Y-%m-%d %H:%M:%S')
-    # 获取随机日记内容并与当前日期相结合以确保唯一性
-    content = get_random_diary_content() + f"\n\n{day_end}"
-    #请求体
-    data = {
-        "yearmonth": "",
-        "address": "",
-        "t": aes_encrypt(int(str(time_shift(day_end)) + "000") - 3600).upper(),
-        "title": "日报",
-        'reportTime':day_end,
-        "longitude": "0.0",
-        "latitude": "0.0",
-        "planId": plan_id,
-        "reportType": "day",
-        "content": content
-    }
-    day_sign = user_id + "day" + plan_id + "日报" + "3478cbbc33f84bd00d75d7dfa69e0daa"
-    headers.update({
-            'sign': md5_encrypt(day_sign),
-            "authorization":token
-        })
-    rsp = requests.post(url="https://api.moguding.net:9000/practice/paper/v5/save", headers=headers, data=json.dumps(data))
-    logging.info(user['phone']+"提交日报返回值"+ rsp.text)
-    if rsp.json()["code"] == 200 and rsp.json()["msg"]:
-        daily_report_status(user['phone'],"日报提交成功")
-        logging.info('用户：' + user['phone']+"日报提交成功")
-    else:
-        # 增加返回值
-        print(rsp.text)
-        logging.info('用户：' + user['phone']+"日报提交失败")
-         # 当提交日报失败时，调用这个函数并将状态设为API的返回值或错误信息
-        daily_report_status(user['phone'], rsp.text)
-
-#读取周报文件
-def get_random_week():
-    with open(r'./basic_info/week_diary', 'r',encoding="utf-8") as f:
-        diary_entries = json.load(f)
-        entry = random.choice(diary_entries)['content']
-    return entry
 
 #获取周次
 def get_weeks(plan_id,token):
     """
-    获取去年该月到该月周的时间段
-    :param plan_id:
     :return: 当前周和前19周的时间段
     """
     headers.update({
@@ -423,9 +383,8 @@ def get_weeks(plan_id,token):
     logging.info(rsp)
     return rsp['data'][:20]
 # 获取提交周报次数
-def get_week_count(plan_id: str, user_id: str,token):
+def get_week_count(plan_id, user_id,token):
     """
-    :param plan_id:
     :return: 提交周报次数
     """
     sign = md5_encrypt(user_id + 'studentweek' + "3478cbbc33f84bd00d75d7dfa69e0daa")
@@ -436,26 +395,40 @@ def get_week_count(plan_id: str, user_id: str,token):
                         data=json.dumps(data)).json()
     return int(rsp['flag'])
 
-# 提交周报
-def submit_week(plan_id, user_id,user,token):
-    """
-    提交周报
-    :param url:
-    :param plan_id:
-    :param user_id:
-    :return:
-    """
-    weeks = get_weeks(plan_id,token)
-    week_start = weeks[0]["startTime"]
-    week_end = weeks[0]["endTime"]
-    # 获取当前时间
+# 判断执行提交周报还是补交周报
+def submit_week(plan_id, user_id, user, token):
+    # 获取当前时间和日期
+    hourNow = datetime.now(pytz.timezone('PRC')).hour
+    current_datetime = datetime.now()
+    current_weekday = current_datetime.strftime('%A')
+    if user['zhobao']:
+        # 提交周报逻辑
+        if current_weekday == "Sunday" and 9 <= hourNow < 12:
+            logging.info('用户：' + user['phone'] + "开始写周报")
+            weeks = get_weeks(plan_id, token)
+            week_start = weeks[0]["startTime"]
+            week_end = weeks[0]["endTime"]
+            nowweek = get_week_count(plan_id, user_id, token) + 1
+            handle_weekly_report(plan_id, user_id, user, token, week_start, week_end, nowweek)
+    # 补交周报逻辑
+    if user.get('reedy', False):
+        logging.info('用户：' + user['phone'] + "开始补交周报")
+        time.sleep(180)
+        weeks = get_weeks(plan_id, token)
+        not_submit_week = weeks[:int(user['requirement_week_num']) + 1]
+        not_submit_week.reverse()
+        for i in not_submit_week:
+            week_start = i['startTime']
+            week_end = i["endTime"]
+            nowweek = get_week_count(plan_id, user_id, token) + 1
+            time.sleep(30)
+            handle_weekly_report(plan_id, user_id, user, token, week_start, week_end, nowweek)
+
+def handle_weekly_report(plan_id, user_id, user, token, week_start, week_end, nowweek):
+    # 公共提交逻辑
+    content_entry = get_random_week()
     now = datetime.now()
     day_end = now.strftime('%Y-%m-%d %H:%M:%S')
-    # # 已提交周报个数
-    total = get_week_count(plan_id, user_id,token)
-    # # 第几周的周报
-    content_entry = get_random_week()
-    nowweek = total + 1
     data = {
         "yearmonth": "",
         "address": "",
@@ -464,183 +437,129 @@ def submit_week(plan_id, user_id,user,token):
         "longitude": "0.0",
         "latitude": "0.0",
         "weeks": f'第{str(nowweek)}周',
-        "endTime": f"{str(week_end)}",
-        "startTime": f"{str(week_start)}",
+        "endTime": week_end,
+        "startTime": week_start,
         "planId": plan_id,
         "reportType": "week",
         "content": content_entry
     }
     week_sign = user_id + "week" + plan_id + "周报" + "3478cbbc33f84bd00d75d7dfa69e0daa"
     headers.update({
-            'sign':md5_encrypt(week_sign),
-            "authorization":token
-        })
+        'sign': md5_encrypt(week_sign),
+        "authorization": token
+    })
     rsp = requests.post(url="https://api.moguding.net:9000/practice/paper/v5/save", headers=headers, data=json.dumps(data))
-    logging.info(user['phone']+"提交周报返回值",rsp.text)
-    print(user['phone']+"提交周报返回值",rsp.text)
+    logging.info(user['phone'] + "提交周报返回值", rsp.text)
     if rsp.json()["code"] == 200 and rsp.json()["msg"]:
-        weekly_report_status(user['phone'],"周报提交成功")
-        logging.info('用户：' + user['phone']+"周报提交成功")
+        weekly_report_status(user['phone'], "周报提交成功")
+        logging.info('用户：' + user['phone'] + "周报提交成功")
     else:
-        # 增加返回值
-        logging.info('用户：' + user['phone']+"周报提交失败")
-         # 当提交日报失败时，调用这个函数并将状态设为API的返回值或错误信息
+        logging.info('用户：' + user['phone'] + "周报提交失败")
         weekly_report_status(user['phone'], rsp.text)
+    
+    # 仅在补交周报时执行数据库更新
+    if user.get('reedy', False):
+        connection, cursor = get_db_connection()
+        try:
+            cursor.execute("""
+                UPDATE users
+                SET reedy = NULL, requirement_week_num = NULL
+                WHERE phone = %s
+            """, (user['phone'],))
+            connection.commit()
+        except Exception as e:
+            print(f"删除用户字段时出错： {e}")
+        finally:
+            cursor.close()
+            connection.close()
 
-
-# 执行打卡日报周报
-def zong(user,user_id: str,plan_id: str,token: str):
-        logging.info("开始打卡")
-        hourNow = datetime.now(pytz.timezone('PRC')).hour
-        if hourNow < 12:
-            signType = 'START'
-        else:
-            signType = 'END'
-                # 打卡签名算法
-        post_sign = "Android" + signType + plan_id + user_id + user['address'] + "3478cbbc33f84bd00d75d7dfa69e0daa"
-        sings= md5_encrypt(post_sign)
-                # 打卡请求头
-        headers2 = {
-            'roleKey': 'student',
-            "user-agent": getUserAgent(),
-            "sign": sings,
-            "authorization": token,
-            "content-type": "application/json; charset=UTF-8"
-                }
-                # 打卡请求体
-        data2 = {"device": "Android", "address": user['address'],
-                "description": user.get("desc","打卡"), "country": "中国", "longitude": user['longitude'], "city":user['city'],
-                "latitude": user['latitude'],
-                "t": aes_encrypt(int(time.time() * 1000)),
-                "planId": plan_id, "province": user['province'], "type": signType}
-        rsp = requests.post(url="https://api.moguding.net:9000/attendence/clock/v2/save", headers=headers2, data=json.dumps(data2))
-        if rsp.json()["code"] == 200 and rsp.json()["msg"]:
-            logging.info('用户：' + user['phone']+"打卡成功")
-            update_punch_status(user['phone'], '签到成功')
-            # 如果是打下班卡，将days字段的值减一
-            if signType == 'END':
-                update_days(user['phone'])
-        else:
-            # 增加返回值
-            logging.info('用户：' + user['phone']+"打卡失败")
-            # 当打卡失败时，调用这个函数并将状态设为API的返回值或错误信息
-            update_punch_status(user['phone'], rsp.text)
-        # 开始写日报
-        if user['xuanbujiao']==True:
-            if 9 <= hourNow < 12:
-                logging.info('用户：' + user['phone']+"开始写日报")
-                tijioa_dayk(user,plan_id, user_id,token)
-        # 补交日报
-        if user.get('bujiao',False):
-            logging.info('用户：' + user['phone']+"开始补交日报")
-            bujiao_start_date=user['bujiao_start_date']
-            bujiao_end_date=user['bujiao_end_date']
-            bujiao_day(plan_id, user_id, bujiao_start_date, bujiao_end_date,user,token)
-            connection, cursor = get_db_connection()
-            try:
-                # 更新指定用户的字段值为 NULL
-                cursor.execute("""
-                    UPDATE users 
-                    SET bujiao = NULL, bujiao_start_date = NULL, bujiao_end_date = NULL 
-                    WHERE phone = %s
-                """, (user['phone'],))
-                # 提交事务
-                connection.commit()
-            except Exception as e:
-                logging.warning(f"删除用户字段时出错： {e}")
-            finally:
-                # 关闭数据库连接
-                cursor.close()
-                connection.close()    
-        # 补交周报
-        if user.get('reedy',False):
-            logging.info('用户：' + user['phone']+"开始补交周报")
-            weeks = get_weeks(plan_id,token)
-            # print('补交周报' + str(weeks))
-            not_submit_week = weeks[:int(user['requirement_week_num']) + 1]
-            not_submit_week.reverse()
-            week_sign = user_id + "week" + plan_id + "周报" + "3478cbbc33f84bd00d75d7dfa69e0daa"
-            # 获取当前时间
-            now = datetime.now()
-            day_end = now.strftime('%Y-%m-%d %H:%M:%S')
-            for i in not_submit_week:
-                time.sleep(30)
-                after_week = get_week_count(plan_id, user_id,token) + 1
-                # 第几周的周报
-                content_entry = get_random_week()
-                week_end = i["endTime"]
-                week_star = i['startTime']
-                data = {
-                    "yearmonth": "",
-                    "address": "",
-                    "t": aes_encrypt(int(str(time_shift(day_end)) + "000") - 3600),
-                    "title": "周报",
-                    "longitude": "0.0",
-                    "latitude": "0.0",
-                    "weeks": f'第{str(after_week)}周',
-                    "endTime": week_end,
-                    "startTime": week_star,
-                    "planId": plan_id,
-                    "reportType": "week",
-                    "content": content_entry
-                        }           
-                headers.update({
-                    'sign':md5_encrypt(week_sign),
-                    "authorization":token
-                })
-                print(headers)
-                print(data)
-                rsp = requests.post(url="https://api.moguding.net:9000/practice/paper/v5/save", headers=headers, data=json.dumps(data))
-                # 解析响应的 JSON 内容
-                response_json = rsp.json()
-                print(user['phone']+"提交周报返回值1",response_json)
-                # 检查 'code' 和 'msg' 的
-                if response_json.get("code") == 200:
-                    logging.info('用户：' + user['phone'] + "已提交" + str(week_end))
-                elif response_json.get("code") == 500 and response_json.get("msg") == "此时间段已经写过周记":
-                    logging.info('用户：' + user['phone'] + rsp.text)
-                    logging.info('用户：' + user['phone'] + "此时间段已经写过周记，不需要再次写入。")
-            connection, cursor = get_db_connection()
-            try:
-                # 更新指定用户的字段值为 NULL
-                cursor.execute("""
-                    UPDATE users
-                    SET reedy = NULL, requirement_week_num = NULL
-                    WHERE phone = %s
-                """, (user['phone'],))
-                # 提交事务
-                connection.commit()
-            except Exception as e:
-                print(f"删除用户字段时出错： {e}")
-            finally:
-                # 关闭数据库连接
-                cursor.close()
-                connection.close()  
-# 周末提交周报
-def zhong(plan_id: str, user_id: str,user,token):
-    # 获取当前时间
+def get_sign_type():
+    """
+    根据当前时间确定打卡类型。
+    """
     hourNow = datetime.now(pytz.timezone('PRC')).hour
-    # 获取当前日期和时间
-    current_datetime = datetime.now()
-    # 从当前日期中提取日期和星期几
-    current_weekday = current_datetime.strftime('%A')
-    if current_weekday=="Sunday":
-        if 9 <= hourNow < 12:
-            logging.info('用户：' + user['phone']+"开始写周报")
-            submit_week(plan_id, user_id,user,token)
-# 连接数据库
-def get_db_connection():
-    # 数据库配置
-    db_config = {
-        'host': "",#服务器ip/127.0.0.1
-        'user': "gongxueyun",#用户名
-        'password': "",#数据库密码
-        'database': "gongxueyun",#数据库名称
-        'port': 3306  # 更正键名/数据库端口默认3306
+    if hourNow < 12:
+        return 'START'
+    return 'END'
+
+def get_punch_sign(user, user_id, plan_id, signType):
+    """
+    获取打卡签名。
+    """
+    return md5_encrypt("Android" + signType + plan_id + user_id + user['address'] + "3478cbbc33f84bd00d75d7dfa69e0daa")
+
+def punch_card(user, user_id, plan_id, token):
+    """
+    执行打卡操作。
+    """
+    signType = get_sign_type()
+    headers2 = {
+        'roleKey': 'student',
+        "user-agent": getUserAgent(),
+        "sign": get_punch_sign(user, user_id, plan_id, signType),
+        "authorization": token,
+        "content-type": "application/json; charset=UTF-8"
     }
-    # 连接数据库并返回连接对象
-    connection = mysql.connector.connect(**db_config)
-    return connection, connection.cursor(dictionary=True)
+    data2 = {
+        "device": "Android",
+        "address": user['address'],
+        "description": user.get("desc","打卡"),
+        "country": "中国",
+        "longitude": user['longitude'],
+        "city": user['city'],
+        "latitude": user['latitude'],
+        "t": aes_encrypt(int(time.time() * 1000)),
+        "planId": plan_id,
+        "province": user['province'],
+        "type": signType
+    }
+    rsp = requests.post(url="https://api.moguding.net:9000/attendence/clock/v2/save", headers=headers2, data=json.dumps(data2))
+    if rsp.json()["code"] == 200 and rsp.json()["msg"]:
+        logging.info('用户：' + user['phone']+"打卡成功")
+        update_punch_status(user['phone'], '签到成功')
+        if get_sign_type() == 'END':
+            update_days(user['phone'])
+    else:
+        logging.info('用户：' + user['phone']+"打卡失败")
+        update_punch_status(user['phone'], rsp.text)
+
+def submit_report_entry(user, plan_id, user_id, token):
+    """
+    提交或补交日报。
+    """
+    # 提交日报
+    if user['xuanbujiao']:
+        hourNow = datetime.now(pytz.timezone('PRC')).hour
+        if 9 <= hourNow < 12:
+            logging.info('用户：' + user['phone'] + "开始写日报")
+            submit_report(user, plan_id, user_id, token)
+
+    # 补交日报
+    if user.get('bujiao', False):  # 注意这里改为了 if 而不是 elif
+        logging.info('用户：' + user['phone'] + "开始补交日报")
+        time.sleep(100)
+        bujiao_start_date = user['bujiao_start_date']
+        bujiao_end_date = user['bujiao_end_date']
+        submit_report(user, plan_id, user_id, token, bujiao_start_date, bujiao_end_date)
+        clear_makeup_daily_report(user['phone'])
+
+def clear_makeup_daily_report(phone):
+    """
+    清除补交日报的信息。
+    """
+    connection, cursor = get_db_connection()
+    try:
+        cursor.execute("""
+            UPDATE users 
+            SET bujiao = NULL, bujiao_start_date = NULL, bujiao_end_date = NULL 
+            WHERE phone = %s
+        """, (phone,))
+        connection.commit()
+    except Exception as e:
+        logging.warning(f"删除用户字段时出错： {e}")
+    finally:
+        cursor.close()
+        connection.close()
 
 def check_user_days(user):
     """检查用户的打卡天数并更新数据库和用户信息（如有必要）"""
@@ -686,14 +605,13 @@ def transform_user_data(user):
 
 # 处理签到和周报提交
 def handle_sign_in_and_report(user, user_id, plan_id, token):
-    zong(user, user_id, plan_id, token)
-    if user['zhobao']:
-        zhong(plan_id, user_id, user, token)
-        logging.info('用户：' + user['phone'] + "已提交周报程序执行完成")
-        print('用户：' + user['phone'] + "已提交周报程序执行完成")
-    else:
-        logging.info('用户：' + user['phone'] + "无提交周报程序执行完成")
-        print('用户：' + user['phone'] + "无提交周报程序执行完成")
+    logging.info("开始打卡")
+    # 执行打卡操作
+    punch_card(user, user_id, plan_id, token)
+    # 提交日报
+    submit_report_entry(user, plan_id, user_id, token)
+    # 提交周报
+    submit_week(plan_id, user_id,user,token)
 
 # 处理登录和获取令牌
 def handle_login_and_token(user):
@@ -707,14 +625,11 @@ def handle_login_and_token(user):
         logging.info('自动登录对于用户 {}'.format(user["phone"]))
         user_id = user["user_id"]
         token = user["token"]
-
     plan_id, token = get_plan(token, user_id, user)
     if plan_id is None and token is None:
         logging.warning("获取plan_id失败，跳过用户：" + user["phone"])
         return None, None
-
     return user_id, token, plan_id
-
 # 主函数
 def main(users):
     # 对每个用户数据进行转换
