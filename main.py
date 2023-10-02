@@ -179,9 +179,9 @@ def get_random_week():
 def get_db_connection():
     # 数据库配置
     db_config = {
-        'host': "47.109.88.41",#服务器ip/127.0.0.1
+        'host': "",#服务器ip/127.0.0.1
         'user': "gongxueyun",#用户名
-        'password': "r4pBbCae55GSNjMS",#数据库密码
+        'password': "",#数据库密码
         'database': "gongxueyun",#数据库名称
         'port': 3306  # 更正键名/数据库端口默认3306
     }
