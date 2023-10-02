@@ -179,9 +179,9 @@ def get_random_week():
 def get_db_connection():
     # 数据库配置
     db_config = {
-        'host': "",#服务器ip/127.0.0.1
+        'host': "47.109.88.41",#服务器ip/127.0.0.1
         'user': "gongxueyun",#用户名
-        'password': "",#数据库密码
+        'password': "r4pBbCae55GSNjMS",#数据库密码
         'database': "gongxueyun",#数据库名称
         'port': 3306  # 更正键名/数据库端口默认3306
     }
@@ -336,12 +336,14 @@ def submit_report(user, plan_id, user_id, token, bujiao_start_date=None, bujiao_
     start = datetime.strptime(bujiao_start_date, '%Y-%m-%d')
     end = datetime.strptime(bujiao_end_date, '%Y-%m-%d')
     while start <= end:
+        now = datetime.now()
+        current_time = now.strftime("%Y-%m-%d %H:%M:%S")
         report_time = start.strftime(f'%Y-%m-%d {random_time()}')
         content = get_random_diary_content() + f"\n\n{report_time}"
         data = {
             "yearmonth": "",
             "address": "",
-            "t": aes_encrypt(int(str(time_shift(report_time)) + "000") - 3600).upper(),
+            "t": aes_encrypt(int(str(time_shift(current_time)) + "000") - 3600).upper(),
             'reportTime': report_time,
             "title": "日报",
             "longitude": "0.0",
@@ -350,7 +352,7 @@ def submit_report(user, plan_id, user_id, token, bujiao_start_date=None, bujiao_
             "reportType": "day",
             "content": content
         }
-        time.sleep(60)
+        time.sleep(30)
         day_sign = user_id + "day" + plan_id + "日报" + "3478cbbc33f84bd00d75d7dfa69e0daa"
         headers.update({
             'sign': md5_encrypt(day_sign),
