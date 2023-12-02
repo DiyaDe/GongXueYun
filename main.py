@@ -254,7 +254,7 @@ def get_plan(token: str, user_id: str, user,proxy):
             headers.update({"authorization": token, "rolekey": "student", 'sign': md5_encrypt(plan_sign)})
             data1 = {'state': ''}
             time.sleep(random.randint(1, 5))
-            rsp = requests.post(url="https://api.moguding.net:9000/practice/plan/v3/getPlanByStu", headers=headers, proxies="https://221.229.212.173:25135",data=json.dumps(data1))
+            rsp = requests.post(url="https://api.moguding.net:9000/practice/plan/v3/getPlanByStu", headers=headers, proxies=proxy,data=json.dumps(data1))
             # 检查响应状态码和内容
             if rsp.status_code == 200 and rsp.text:
                 try:
@@ -659,9 +659,7 @@ def ip(user):
         province, cities = random.choice(list(area_codes.items()))
         city, district_code = random.choice(list(cities.items()))
     # 构建 API 请求 URL
-    district_url = f"http://http.tiqu.letecs.com/getip3?num=1&type=2&pro=410000&city={district_code}&yys=0&port=11&time=1&ts=0&ys=0&cs=0&lb=1&sb=0&pb=4&mr=1&regions=&gm=4"
-    print(district_url)
-    time.sleep(5)
+    district_url = f"http://{district_code}"
     response = requests.get(district_url)
     if response.status_code == 200:
         data = response.json()
